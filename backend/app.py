@@ -44,6 +44,9 @@ class Source(BaseModel):
     """A cited source with an optional link to the lesson or course"""
     text: str
     url: Optional[str] = None
+    course_title: Optional[str] = None
+    course_url: Optional[str] = None
+    lesson_number: Optional[int] = None
 
 class QueryResponse(BaseModel):
     """Response model for course queries"""

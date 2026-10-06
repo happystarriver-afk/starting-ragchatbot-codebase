@@ -122,18 +122,10 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
-        const sourceLinks = sources.map(source => {
-            const text = escapeHtml(source.text);
-            if (source.url && /^https?:\/\//i.test(source.url)) {
-                const href = escapeHtml(source.url).replace(/"/g, '&quot;');
-                return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-            }
-            return text;
-        });
         html += `
             <details class="sources-collapsible">
-                <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sourceLinks.join(', ')}</div>
+                <summary class="sources-header">Sources <span class="sources-count">${sources.length}</span></summary>
+                <div class="sources-content">${renderSources(sources)}</div>
             </details>
         `;
     }
@@ -143,6 +135,43 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     return messageId;
+}
+
+// Render a link only for http(s) URLs; otherwise fall back to a plain span
+function sourceLink(url, className, innerHtml) {
+    if (url && /^https?:\/\//i.test(url)) {
+        const href = escapeHtml(url).replace(/"/g, '&quot;');
+        return `<a class="${className}" href="${href}" target="_blank" rel="noopener noreferrer">${innerHtml}</a>`;
+    }
+    return `<span class="${className}">${innerHtml}</span>`;
+}
+
+// Group sources by course: course title once, then one chip per lesson
+function renderSources(sources) {
+    const groups = new Map();
+    for (const source of sources) {
+        const title = source.course_title || source.text;
+        if (!groups.has(title)) {
+            groups.set(title, { courseUrl: source.course_url, lessons: [] });
+        }
+        groups.get(title).lessons.push(source);
+    }
+
+    const externalIcon = '<svg class="source-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+
+    return [...groups].map(([title, group]) => {
+        const lessons = group.lessons
+            .filter(s => s.lesson_number !== null && s.lesson_number !== undefined)
+            .sort((a, b) => a.lesson_number - b.lesson_number)
+            .map(s => sourceLink(s.url, 'source-chip', `Lesson ${s.lesson_number}${externalIcon}`))
+            .join('');
+        return `
+            <div class="source-group">
+                ${sourceLink(group.courseUrl, 'source-course', escapeHtml(title))}
+                ${lessons ? `<div class="source-chips">${lessons}</div>` : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 // Helper function to escape HTML for user messages
