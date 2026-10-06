@@ -567,9 +567,12 @@ a.source-course:focus-visible {
 }
 
 .stats-header::before,
-.suggested-header::before {
+.suggested-header::before,
+.new-chat-button::before {
     content: '▶';
     display: inline-block;
+    width: 0.75rem;
+    text-align: center;
     margin-right: 0.5rem;
     transition: transform 0.2s ease;
     font-size: 0.75rem;
@@ -585,8 +588,10 @@ details[open] .suggested-header::before {
     display: block;
     width: 100%;
     text-align: left;
+    font-family: inherit;
     font-size: 0.875rem;
     font-weight: 600;
+    line-height: inherit;
     color: var(--text-secondary);
     cursor: pointer;
     padding: 0.5rem 0;
@@ -601,6 +606,10 @@ details[open] .suggested-header::before {
 .new-chat-button:hover,
 .new-chat-button:focus {
     color: var(--primary-color);
+}
+
+.new-chat-button::before {
+    content: '+';
 }
 
 /* Course Stats in Sidebar */
