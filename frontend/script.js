@@ -30,6 +30,12 @@ function setupEventListeners() {
     });
     
     
+    // New chat: reset the conversation and start a fresh session
+    document.getElementById('newChatButton').addEventListener('click', () => {
+        createNewSession();
+        chatInput.focus();
+    });
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
