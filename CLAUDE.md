@@ -17,7 +17,7 @@ Requires `ANTHROPIC_API_KEY` in `.env` at the repo root (see `.env.example`). Th
 A RAG chatbot over course transcripts: FastAPI backend + vanilla JS frontend served as static files from the same app.
 
 **Query flow (tool-based retrieval, not retrieve-then-generate):**
-`app.py` `/api/query` → `RAGSystem.query()` → `AIGenerator.generate_response()` sends the question to Claude with the `search_course_content` tool. Claude decides whether to search; if it does, `_handle_tool_execution()` runs the tool via `ToolManager`, sends the `tool_result` back, and makes a second Claude call **without tools** — so at most one search round per query. Sources shown in the UI are side-channeled: `CourseSearchTool` stores them in `last_sources`, and `RAGSystem` reads and then resets them through `ToolManager` after the response.
+`app.py` `/api/query` → `RAGSystem.query()` → `AIGenerator.generate_response()` sends the question to Claude with the `search_course_content` tool. Claude decides whether to search; if it does, `_handle_tool_execution()` runs the tool via `ToolManager`, sends the `tool_result` back, and makes a second Claude call **without tools** — so at most one search round per query. Sources shown in the UI are side-channeled: `CourseSearchTool` stores them in `last_sources` as deduplicated `{text, url}` objects (the URL is looked up from `course_catalog` via `get_lesson_link()` / `get_course_link()`), and `RAGSystem` reads and then resets them through `ToolManager` after the response.
 
 **Two ChromaDB collections** (`vector_store.py`, persisted at `backend/chroma_db`):
 - `course_catalog`: one entry per course (title as ID, instructor, links, `lessons_json`). Used to resolve fuzzy course names via semantic search (`_resolve_course_name`).
