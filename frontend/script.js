@@ -137,10 +137,76 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     }
     
     messageDiv.innerHTML = html;
+    if (type === 'assistant') {
+        const contentDiv = messageDiv.querySelector('.message-content');
+        contentDiv.querySelectorAll('a').forEach(a => {
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+        });
+        if (enhanceOutline(contentDiv)) messageDiv.classList.add('message-outline');
+    }
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     return messageId;
+}
+
+// Turn an outline answer (## course, ### Lesson N blocks) into a header plus lesson cards.
+// Returns true if the content looked like an outline.
+function enhanceOutline(content) {
+    const lessonPattern = /^Lesson\s+(\d+)\s*:\s*(.+)$/i;
+    const headings = [...content.querySelectorAll(':scope > h3')]
+        .filter(h => lessonPattern.test(h.textContent.trim()));
+    if (headings.length === 0) return false;
+
+    content.classList.add('outline');
+
+    // Everything from the course heading up to the first lesson becomes the header
+    const courseHeading = content.querySelector(':scope > h2');
+    if (courseHeading) {
+        const header = document.createElement('div');
+        header.className = 'outline-header';
+        content.insertBefore(header, courseHeading);
+        while (header.nextSibling && header.nextSibling !== headings[0]) {
+            header.appendChild(header.nextSibling);
+        }
+    }
+
+    const list = document.createElement('div');
+    list.className = 'lesson-list';
+    content.insertBefore(list, headings[0]);
+
+    for (const heading of headings) {
+        const [, number, title] = heading.textContent.trim().match(lessonPattern);
+        const card = document.createElement('section');
+        card.className = 'lesson-card';
+        const body = document.createElement('div');
+        body.className = 'lesson-body';
+
+        // Move the lesson's summary and key points (up to the next heading) into the card body
+        let next = heading.nextSibling;
+        while (next && !/^H[1-3]$/.test(next.nodeName)) {
+            const following = next.nextSibling;
+            body.appendChild(next);
+            next = following;
+        }
+
+        // Rebuild the heading as: [number badge] title (keeping the lesson link)
+        const link = heading.querySelector('a');
+        const titleEl = link || document.createElement('span');
+        titleEl.textContent = title;
+        titleEl.classList.add('lesson-title');
+        heading.replaceChildren();
+        const badge = document.createElement('span');
+        badge.className = 'lesson-badge';
+        badge.textContent = number;
+        heading.append(badge, titleEl);
+
+        card.appendChild(heading);
+        if (body.textContent.trim()) card.appendChild(body);
+        list.appendChild(card);
+    }
+    return true;
 }
 
 // Render a link only for http(s) URLs; otherwise fall back to a plain span

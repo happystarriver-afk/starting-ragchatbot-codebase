@@ -6,6 +6,9 @@ class Lesson(BaseModel):
     lesson_number: int  # Sequential lesson number (1, 2, 3, etc.)
     title: str         # Lesson title
     lesson_link: Optional[str] = None  # URL link to the lesson
+    content: Optional[str] = None      # Raw lesson text (ingestion only, not stored)
+    summary: Optional[str] = None      # Generated lesson summary
+    key_points: List[str] = []         # Generated key takeaways
 
 class Course(BaseModel):
     """Represents a complete course with its lessons"""

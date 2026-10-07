@@ -19,17 +19,21 @@ A RAG chatbot over course transcripts: FastAPI backend + vanilla JS frontend ser
 **Query flow (tool-based retrieval, not retrieve-then-generate):**
 `app.py` `/api/query` → `RAGSystem.query()` → `AIGenerator.generate_response()` sends the question to Claude with the `search_course_content` tool. Claude decides whether to search; if it does, `_handle_tool_execution()` runs the tool via `ToolManager`, sends the `tool_result` back, and makes a second Claude call **without tools** — so at most one search round per query. Sources shown in the UI are side-channeled: `CourseSearchTool` stores them in `last_sources` as deduplicated `{text, url, course_title, course_url, lesson_number}` objects; URLs come from `course_catalog` via `get_lesson_link()` / `get_course_link()`, and the frontend groups them by course. `RAGSystem` reads and then resets them through `ToolManager` after the response.
 
+A second tool, `get_course_outline` (`CourseOutlineTool`), handles outline/structure questions: it returns the course link, instructor and every lesson with its link, summary and key points from `course_catalog`, and sets one source per lesson. The system prompt in `ai_generator.py` defines the outline's Markdown format.
+
+Outline answers follow a fixed Markdown shape (`## course`, then one `### Lesson N: title` per lesson). `enhanceOutline()` in `frontend/script.js` detects that shape and turns it into a header plus lesson cards, so keep the system prompt and that function in sync.
+
 **Two ChromaDB collections** (`vector_store.py`, persisted at `backend/chroma_db`):
 - `course_catalog`: one entry per course (title as ID, instructor, links, `lessons_json`). Used to resolve fuzzy course names via semantic search (`_resolve_course_name`).
 - `course_content`: text chunks with `course_title` / `lesson_number` metadata, filtered by the resolved title and lesson.
 
-**Ingestion:** on startup, `app.py` loads every `.txt/.pdf/.docx` file in `../docs`. `document_processor.py` expects this exact format: line 1 `Course Title:`, line 2 `Course Link:`, line 3 `Course Instructor:`, then `Lesson N: <title>` markers, each optionally followed by a `Lesson Link:` line. Chunks are sentence-based (`CHUNK_SIZE` / `CHUNK_OVERLAP` in `config.py`) and prefixed with course/lesson context before embedding.
+**Ingestion:** on startup, `app.py` loads every `.txt/.pdf/.docx` file in `../docs`. `document_processor.py` expects this exact format: line 1 `Course Title:`, line 2 `Course Link:`, line 3 `Course Instructor:`, then `Lesson N: <title>` markers, each optionally followed by a `Lesson Link:` line. Before storing a new course, `AIGenerator.summarize_lessons()` makes one Claude call per course (JSON reply, parsed from the text) and stores each lesson's `summary` / `key_points` in `lessons_json`. If it fails, it only logs a warning. Chunks are sentence-based (`CHUNK_SIZE` / `CHUNK_OVERLAP` in `config.py`) and prefixed with course/lesson context before embedding.
 
 **Adding a tool:** subclass `Tool` in `search_tools.py` (implement `get_tool_definition()` and `execute()`), then register it in `RAGSystem.__init__`.
 
 ## Gotchas
 
 - All paths are relative to `backend/` (`../docs`, `../frontend`, `./chroma_db`), so the server must be started from that directory.
-- Course title is the unique key, and existing courses are skipped on startup. After editing a doc or changing the chunking or embedding settings, delete `backend/chroma_db` to force a re-ingest.
-- The configured model (`config.py`) rejects the `temperature` parameter and may return thinking blocks before text. Use `AIGenerator._extract_text()` instead of `response.content[0].text`.
+- Course title is the unique key, and existing courses are skipped on startup. After editing a doc or changing the chunking, embedding or lesson-summary settings, delete `backend/chroma_db` to force a re-ingest.
+- The configured model (`config.py`) rejects the `temperature` parameter and forced `tool_choice` (`"tool"` / `"any"`) and may return thinking blocks before text. Use `AIGenerator._extract_text()` instead of `response.content[0].text`.
 - Session history is in-memory only (`session_manager.py`), is lost on restart, and is injected into the system prompt as plain text rather than as message turns.

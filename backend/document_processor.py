@@ -174,7 +174,8 @@ class DocumentProcessor:
                         lesson = Lesson(
                             lesson_number=current_lesson,
                             title=lesson_title,
-                            lesson_link=lesson_link
+                            lesson_link=lesson_link,
+                            content=lesson_text
                         )
                         course.lessons.append(lesson)
                         
@@ -223,7 +224,8 @@ class DocumentProcessor:
                 lesson = Lesson(
                     lesson_number=current_lesson,
                     title=lesson_title,
-                    lesson_link=lesson_link
+                    lesson_link=lesson_link,
+                    content=lesson_text
                 )
                 course.lessons.append(lesson)
                 

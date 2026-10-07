@@ -124,6 +124,68 @@ class CourseSearchTool(Tool):
         
         return "\n\n".join(formatted)
 
+class CourseOutlineTool(Tool):
+    """Tool for getting a course's full outline with per-lesson summaries"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+        self.last_sources = []  # Track sources from last outline
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """Return Anthropic tool definition for this tool"""
+        return {
+            "name": "get_course_outline",
+            "description": "Get a course's outline: title, link, instructor and every lesson with its link, summary and key points",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_name": {
+                        "type": "string",
+                        "description": "Course title (partial matches work, e.g. 'MCP', 'Computer Use')"
+                    }
+                },
+                "required": ["course_name"]
+            }
+        }
+
+    def execute(self, course_name: str) -> str:
+        """Return the formatted outline of the best matching course"""
+        outline = self.store.get_course_outline(course_name)
+        if not outline:
+            return f"No course found matching '{course_name}'"
+
+        course_title = outline["title"]
+        course_url = outline.get("course_link")
+        lines = [
+            f"Course: {course_title}",
+            f"Course Link: {course_url or 'N/A'}",
+            f"Instructor: {outline.get('instructor') or 'Unknown'}",
+            f"Number of lessons: {len(outline['lessons'])}",
+        ]
+        sources = []
+
+        for lesson in outline["lessons"]:
+            lesson_num = lesson.get("lesson_number")
+            lesson_url = lesson.get("lesson_link")
+            lines.append("")
+            lines.append(f"Lesson {lesson_num}: {lesson.get('lesson_title')}")
+            lines.append(f"Lesson Link: {lesson_url or 'N/A'}")
+            lines.append(f"Summary: {lesson.get('summary') or '(summary unavailable)'}")
+            for point in lesson.get("key_points") or []:
+                lines.append(f"- {point}")
+
+            sources.append({
+                "text": f"{course_title} - Lesson {lesson_num}",
+                "url": lesson_url or course_url,
+                "course_title": course_title,
+                "course_url": course_url,
+                "lesson_number": lesson_num,
+            })
+
+        self.last_sources = sources
+        return "\n".join(lines)
+
+
 class ToolManager:
     """Manages available tools for the AI"""
     

@@ -415,6 +415,132 @@ a.source-course:focus-visible {
     margin: 1rem 0;
 }
 
+.message.assistant .message-content a {
+    color: var(--source-link);
+    text-decoration: none;
+}
+
+.message.assistant .message-content a:hover {
+    color: var(--source-link-hover);
+    text-decoration: underline;
+}
+
+/* Course outline: header plus one card per lesson */
+.message.message-outline {
+    width: 85%;
+}
+
+.message-content.outline {
+    padding: 1.25rem;
+}
+
+.outline-header {
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.outline-header h2 {
+    margin: 0 0 0.375rem;
+    font-size: 1.2rem;
+    line-height: 1.35;
+}
+
+.message.assistant .outline-header h2 a {
+    color: var(--text-primary);
+}
+
+.message.assistant .outline-header h2 a:hover {
+    color: var(--source-link-hover);
+}
+
+.outline-header p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.outline-header strong {
+    color: var(--text-primary);
+}
+
+.lesson-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.lesson-card {
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.45);
+    transition: border-color 0.15s;
+}
+
+.lesson-card:hover {
+    border-color: var(--source-chip-border);
+}
+
+.message-content .lesson-card h3 {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    margin: 0;
+    font-size: 0.975rem;
+    line-height: 1.5;
+}
+
+.lesson-badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    border: 1px solid var(--source-chip-border);
+    border-radius: 6px;
+    background: var(--source-chip-bg);
+    color: var(--source-link);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.message.assistant .lesson-card h3 a.lesson-title {
+    color: var(--text-primary);
+}
+
+.message.assistant .lesson-card h3 a.lesson-title:hover {
+    color: var(--source-link-hover);
+}
+
+.lesson-body {
+    margin-top: 0.375rem;
+    padding-left: 2.125rem;
+    font-size: 0.875rem;
+}
+
+.lesson-body p {
+    margin: 0 0 0.375rem;
+    color: var(--text-secondary);
+}
+
+.lesson-body ul {
+    margin: 0;
+    padding-left: 1.125rem;
+}
+
+.lesson-body li {
+    margin: 0.125rem 0;
+    line-height: 1.5;
+}
+
+.lesson-body li::marker {
+    color: var(--source-link);
+}
+
 /* Chat Input Container */
 .chat-input-container {
     display: flex;
@@ -835,5 +961,16 @@ details[open] .suggested-header::before {
 @media (max-width: 1024px) {
     .sidebar {
         width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .message.message-outline {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .lesson-body {
+        padding-left: 0;
     }
 }

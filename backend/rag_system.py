@@ -4,7 +4,7 @@ from document_processor import DocumentProcessor
 from vector_store import VectorStore
 from ai_generator import AIGenerator
 from session_manager import SessionManager
-from search_tools import ToolManager, CourseSearchTool
+from search_tools import ToolManager, CourseSearchTool, CourseOutlineTool
 from models import Course, Lesson, CourseChunk
 
 class RAGSystem:
@@ -23,6 +23,8 @@ class RAGSystem:
         self.tool_manager = ToolManager()
         self.search_tool = CourseSearchTool(self.vector_store)
         self.tool_manager.register_tool(self.search_tool)
+        self.outline_tool = CourseOutlineTool(self.vector_store)
+        self.tool_manager.register_tool(self.outline_tool)
     
     def add_course_document(self, file_path: str) -> Tuple[Course, int]:
         """
@@ -37,6 +39,9 @@ class RAGSystem:
         try:
             # Process the document
             course, course_chunks = self.document_processor.process_course_document(file_path)
+
+            # Generate per-lesson summaries for the course outline
+            self.ai_generator.summarize_lessons(course)
             
             # Add course metadata to vector store for semantic search
             self.vector_store.add_course_metadata(course)
@@ -85,7 +90,8 @@ class RAGSystem:
                     course, course_chunks = self.document_processor.process_course_document(file_path)
                     
                     if course and course.title not in existing_course_titles:
-                        # This is a new course - add it to the vector store
+                        # This is a new course - summarize lessons, then add it to the vector store
+                        self.ai_generator.summarize_lessons(course)
                         self.vector_store.add_course_metadata(course)
                         self.vector_store.add_course_content(course_chunks)
                         total_courses += 1

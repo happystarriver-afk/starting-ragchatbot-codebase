@@ -1,21 +1,36 @@
 import anthropic
+import json
 from typing import List, Optional, Dict, Any
 
 class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
     
     # Static system prompt to avoid rebuilding on each call
-    SYSTEM_PROMPT = """ You are an AI assistant specialized in course materials and educational content with access to a comprehensive search tool for course information.
+    SYSTEM_PROMPT = """ You are an AI assistant specialized in course materials and educational content with access to tools for course information.
 
-Search Tool Usage:
-- Use the search tool **only** for questions about specific course content or detailed educational materials
-- **One search per query maximum**
-- Synthesize search results into accurate, fact-based responses
-- If search yields no results, state this clearly without offering alternatives
+Tool Usage:
+- **get_course_outline**: use for questions about a course's outline, structure, syllabus, or what lessons it contains
+- **search_course_content**: use **only** for questions about specific course content or detailed educational materials
+- **One tool call per query maximum**
+- Synthesize tool results into accurate, fact-based responses
+- If a tool yields no results, state this clearly without offering alternatives
+
+Outline Format (overrides the brevity rule below), use exactly this Markdown structure:
+## [Course Title](course link)
+**Instructor:** name · **Lessons:** count
+
+### [Lesson N: Lesson Title](lesson link)
+Summary paragraph.
+- key point
+- key point
+
+- Repeat the `###` block for **every** lesson in order; never truncate or merge lessons
+- If a lesson's summary is unavailable, show only its heading — never write placeholders like "No key points available"
+- No text before the `##` heading or after the last lesson
 
 Response Protocol:
-- **General knowledge questions**: Answer using existing knowledge without searching
-- **Course-specific questions**: Search first, then answer
+- **General knowledge questions**: Answer using existing knowledge without using tools
+- **Course-specific questions**: Use the appropriate tool first, then answer
 - **No meta-commentary**:
  - Provide direct answers only — no reasoning process, search explanations, or question-type analysis
  - Do not mention "based on the search results"
@@ -28,7 +43,7 @@ All responses must be:
 4. **Example-supported** - Include relevant examples when they aid understanding
 Provide only the direct answer to what was asked.
 """
-    
+
     def __init__(self, api_key: str, model: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
@@ -36,7 +51,7 @@ Provide only the direct answer to what was asked.
         # Pre-build base API parameters
         self.base_params = {
             "model": self.model,
-            "max_tokens": 800
+            "max_tokens": 4096
         }
     
     def generate_response(self, query: str,
@@ -132,6 +147,42 @@ Provide only the direct answer to what was asked.
         # Get final response
         final_response = self.client.messages.create(**final_params)
         return self._extract_text(final_response)
+
+    def summarize_lessons(self, course) -> None:
+        """Fill in summary and key_points for each lesson of the course in place"""
+        lessons = [lesson for lesson in course.lessons if lesson.content]
+        if not lessons:
+            return
+
+        transcript = "\n\n".join(
+            f"=== Lesson {lesson.lesson_number}: {lesson.title} ===\n{lesson.content}"
+            for lesson in lessons
+        )
+        prompt = (
+            f"Below are the lesson transcripts of the course \"{course.title}\". "
+            "For every lesson, write a specific 2-3 sentence summary of what it teaches "
+            "and 3-5 concrete key points.\n"
+            "Reply with only a JSON object, no other text, in this shape:\n"
+            '{"lessons": [{"lesson_number": 0, "summary": "...", "key_points": ["...", "..."]}]}'
+            "\n\n" + transcript
+        )
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=8000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = self._extract_text(response)
+            data = json.loads(text[text.index("{"):text.rindex("}") + 1])
+            by_number = {item["lesson_number"]: item for item in data.get("lessons", [])}
+            for lesson in course.lessons:
+                item = by_number.get(lesson.lesson_number)
+                if item:
+                    lesson.summary = item.get("summary")
+                    lesson.key_points = item.get("key_points", [])
+        except Exception as e:
+            print(f"Warning: lesson summary failed for {course.title}: {e}")
 
     @staticmethod
     def _extract_text(response) -> str:
